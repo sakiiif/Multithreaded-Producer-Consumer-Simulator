@@ -67,3 +67,81 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Qt build directories
+build/
+build-*/
+*-build-*/
+
+# Qt Creator generated files
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qmlc
+*.jsc
+
+# qmake
+Makefile
+Makefile.*
+*build-*
+.qmake.stash
+
+# CMake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Compiled Object files
+*.o
+*.obj
+*.slo
+*.lo
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic/Shared libraries
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Debug files
+*.pdb
+*.ilk
+*.exp
+
+# Qt-specific binaries
+*.qmlc
+*.jsc
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
