@@ -1,35 +1,34 @@
 #pragma once
 #include "Job.h"
 #include "ThreadSafeQueue.h"
+#include <QObject>
+#include <QString>
 #include <atomic>
-#include <string>
 
-// The states a piece of equipment can be in. This is a simple State
-// pattern implemented with an enum + transition function rather than
-// separate classes, which is enough for an entry-level project.
-enum class EquipmentState {
-    Idle,
-    Running,
-    Alarm,
-    Down
-};
+// Same state machine idea as the console version, but this worker is a
+// QObject so it can emit signals. It still runs on a plain std::thread --
+// Qt automatically delivers its signals to the GUI thread as queued
+// (thread-safe) calls, because the receiving MainWindow lives on the
+// main/GUI thread while these signals are emitted from a background thread.
+enum class EquipmentState { Idle, Running, Alarm, Down };
 
-std::string toString(EquipmentState state);
-
-// Represents one piece of equipment. Each instance runs on its own
-// std::thread, pulling jobs off the shared queue and "processing" them.
-class EquipmentWorker {
+class EquipmentWorker : public QObject {
+    Q_OBJECT
 public:
-    EquipmentWorker(int workerId, ThreadSafeQueue<Job>& jobQueue);
+    EquipmentWorker(int workerId, ThreadSafeQueue<Job>& jobQueue, QObject* parent = nullptr);
 
-    // Entry point run on its own std::thread.
+    // Consumer loop. Call this on a std::thread -- never call it directly
+    // on the GUI thread, or the window will freeze until it's done.
     void run();
 
-    EquipmentState state() const { return state_.load(); }
+signals:
+    void stateChanged(int workerId, const QString& state);
+    void logMessage(const QString& message);
 
 private:
     void setState(EquipmentState newState);
     void processJob(const Job& job);
+    static QString toString(EquipmentState state);
 
     int workerId_;
     ThreadSafeQueue<Job>& jobQueue_;

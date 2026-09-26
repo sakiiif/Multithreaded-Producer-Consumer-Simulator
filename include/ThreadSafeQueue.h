@@ -8,12 +8,6 @@
 // and multiple consumers (equipment worker threads).
 template <typename T>
 class ThreadSafeQueue {
-private:
-    mutable std::mutex mutex_;
-    std::condition_variable cv_;
-    std::queue<T> queue_;
-    bool shutdown_ = false;
-
 public:
     void push(T item) {
         {
@@ -53,4 +47,10 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         return queue_.size();
     }
+
+private:
+    mutable std::mutex mutex_;
+    std::condition_variable cv_;
+    std::queue<T> queue_;
+    bool shutdown_ = false;
 };

@@ -1,11 +1,9 @@
 #include "EquipmentWorker.h"
-#include "Logger.h"
 #include <thread>
 #include <chrono>
 #include <random>
-#include <sstream>
 
-std::string toString(EquipmentState state) {
+QString EquipmentWorker::toString(EquipmentState state) {
     switch (state) {
         case EquipmentState::Idle:    return "IDLE";
         case EquipmentState::Running: return "RUNNING";
@@ -15,20 +13,21 @@ std::string toString(EquipmentState state) {
     return "UNKNOWN";
 }
 
-EquipmentWorker::EquipmentWorker(int workerId, ThreadSafeQueue<Job>& jobQueue)
-    : workerId_(workerId), jobQueue_(jobQueue) {}
+EquipmentWorker::EquipmentWorker(int workerId, ThreadSafeQueue<Job>& jobQueue, QObject* parent)
+    : QObject(parent), workerId_(workerId), jobQueue_(jobQueue) {}
 
 void EquipmentWorker::setState(EquipmentState newState) {
     state_.store(newState);
-    std::ostringstream oss;
-    oss << "[Equipment-" << workerId_ << "] state -> " << toString(newState);
-    Logger::instance().log(oss.str());
+    emit stateChanged(workerId_, toString(newState));
 }
 
 void EquipmentWorker::processJob(const Job& job) {
     setState(EquipmentState::Running);
+    emit logMessage(QString("[Equipment-%1] starting job %2 (lot %3)")
+                         .arg(workerId_)
+                         .arg(job.id)
+                         .arg(QString::fromStdString(job.waferLotId)));
 
-    // Small chance of a mid-job alarm, like a real equipment fault.
     static thread_local std::mt19937 rng(std::random_device{}());
     std::uniform_int_distribution<int> alarmChance(1, 20); // 1-in-20 -> 5%
 
@@ -36,19 +35,17 @@ void EquipmentWorker::processJob(const Job& job) {
 
     if (alarmChance(rng) == 1) {
         setState(EquipmentState::Alarm);
-        std::ostringstream oss;
-        oss << "[Equipment-" << workerId_ << "] ALARM during job " << job.id
-             << " (lot " << job.waferLotId << "), recovering...";
-        Logger::instance().log(oss.str());
+        emit logMessage(QString("[Equipment-%1] ALARM during job %2, recovering...")
+                             .arg(workerId_).arg(job.id));
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(job.processingTimeMs / 2));
 
-    std::ostringstream done;
-    done << "[Equipment-" << workerId_ << "] completed job " << job.id
-          << " (lot " << job.waferLotId << ")";
-    Logger::instance().log(done.str());
+    emit logMessage(QString("[Equipment-%1] completed job %2 (lot %3)")
+                         .arg(workerId_)
+                         .arg(job.id)
+                         .arg(QString::fromStdString(job.waferLotId)));
 }
 
 void EquipmentWorker::run() {
@@ -57,15 +54,12 @@ void EquipmentWorker::run() {
     while (true) {
         std::optional<Job> job = jobQueue_.pop();
         if (!job.has_value()) {
-            // Queue was shut down and fully drained -- no more work coming.
-            break;
+            break; // queue shut down and drained
         }
         processJob(*job);
         setState(EquipmentState::Idle);
     }
 
     setState(EquipmentState::Down);
-    std::ostringstream oss;
-    oss << "[Equipment-" << workerId_ << "] shutting down, no more jobs.";
-    Logger::instance().log(oss.str());
+    emit logMessage(QString("[Equipment-%1] shutting down, no more jobs.").arg(workerId_));
 }
